@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"github.com/z-sk1/arduino/arduino"
+
+	"os"
+
+	"github.com/ncruces/zenity"
 	"github.com/tarm/serial"
-	"github.com/ncruses/zenity"
+	"github.com/z-sk1/arduino/arduino"
 )
 
 var Device *arduino.Device
@@ -13,7 +17,23 @@ func main() {
 	portName := askForPort()
 	openPort(portName)
 
-	go setupTray()
+	setupTray()
+
+	go func() {
+		buf := make([]byte, 128)
+		for {
+			n, err := Device.Port.Read(buf)
+			if err != nil {
+				fmt.Println("Read error:", err)
+				return
+			}
+			if n > 0 {
+				fmt.Print(string(buf[:n]))
+				// Force flush immediately
+				os.Stdout.Sync()
+			}
+		}
+	}()
 }
 
 func askForPort() string {

@@ -2,15 +2,20 @@ package arduino
 
 import (
 	"fmt"
+
 	"github.com/tarm/serial"
 )
 
 type Device struct {
-	port *serial.Port
+	Port *serial.Port
 }
 
 func New(port *serial.Port) *Device {
-	return &Device{port: port}
+	return &Device{Port: port}
+}
+
+func (d *Device) Close() error {
+	return d.Port.Close()
 }
 
 func (d *Device) Exec(cmd string) error {
