@@ -1,0 +1,570 @@
+#include <Servo.h>
+
+#define BLUE_LED_PIN 10
+#define GREEN_LED_PIN 9
+#define RED_LED_PIN 8
+#define YELLOW_LED_PIN 12
+#define BUZZ_PIN 11
+
+bool rgbShowActive = false;
+bool melodyActive = false;
+bool sirenActive = false;
+bool megalovaniaActive = false;
+bool portalMainThemeActive = false;
+bool apertureThemeActive = false;
+bool overworldThemeActive = false;
+bool undergroundThemeActive = false;
+bool servoSpinActive = false;
+bool servoJoystickActive = false;
+bool lightJoystickActive = false;
+bool allLightsOnToggle = false;
+bool buzzerJoystickActive = false;
+
+Servo servo;
+int servoPos;
+int joyX = A0;
+int joyY = A1;
+int joyBtn = 5;
+
+unsigned long lastMoveTime = 0;
+int servoStep = 5;  // how many degrees to move each step
+int servoDir = 1;
+
+void setup() {
+  Serial.begin(9600);
+
+  servoPos = 90;
+  servo.attach(4);
+  servo.write(servoPos);
+
+  pinMode(joyX, INPUT);
+  pinMode(joyY, INPUT);
+  pinMode(joyBtn, INPUT_PULLUP);
+
+  pinMode(BLUE_LED_PIN, OUTPUT);
+  pinMode(GREEN_LED_PIN, OUTPUT);
+  pinMode(RED_LED_PIN, OUTPUT);
+  pinMode(YELLOW_LED_PIN, OUTPUT);
+
+  pinMode(BUZZ_PIN, OUTPUT);
+
+  Serial.println("Arduino ready!");
+}
+
+void loop() {
+  // check if any data is available
+
+  if (Serial.available()) {
+    String cmd = Serial.readStringUntil('\n');
+    String arg;
+    cmd.trim();
+
+    int spaceIndex = cmd.indexOf(' ');
+    if (spaceIndex > 0) {
+      arg = cmd.substring(spaceIndex + 1);
+      cmd = cmd.substring(0, spaceIndex);
+    }
+
+    if (cmd == "turnBlueLedOn") {
+      digitalWrite(BLUE_LED_PIN, HIGH);
+      Serial.println("BLUE LED is on");
+
+    } else if (cmd == "turnBlueLedOff") {
+      digitalWrite(BLUE_LED_PIN, LOW);
+      Serial.println("BLUE LED is off");
+
+    } else if (cmd == "turnGreenLedOn") {
+      digitalWrite(GREEN_LED_PIN, HIGH);
+      Serial.println("GREEN LED is on");
+
+    } else if (cmd == "turnGreenLedOff") {
+      digitalWrite(GREEN_LED_PIN, LOW);
+      Serial.println("GREEN LED is off");
+
+    } else if (cmd == "turnRedLedOn") { 
+      digitalWrite(RED_LED_PIN, HIGH);
+      Serial.println("RED LED is on");
+
+    } else if (cmd == "turnRedLedOff") { 
+      digitalWrite(RED_LED_PIN, LOW);
+      Serial.println("RED LED is off");
+
+    } else if (cmd == "turnYellowLedOn") {
+      digitalWrite(YELLOW_LED_PIN, HIGH);
+      Serial.println("YELLOW LED is on");
+
+    } else if (cmd == "turnYellowLedOff") {
+      digitalWrite(YELLOW_LED_PIN, LOW);
+      Serial.println("YELLOW LED is off");
+
+    } else if (cmd == "turnBuzzOn") {
+      tone(BUZZ_PIN, 1000);
+      Serial.println("Buzz is on");
+
+    } else if (cmd == "turnBuzzOff") {
+      noTone(BUZZ_PIN);
+      Serial.println("Buzz is on");
+
+    } else if (cmd == "rgbShowOn") {
+      rgbShowActive = true;
+      Serial.println("RGB SHOW is on");
+
+    } else if (cmd == "rgbShowOff") {
+      rgbShowActive = false;
+      Serial.println("RGB SHOW is off");
+      turnAllLEDsOff();
+
+    } else if (cmd == "melodyOn") {
+      melodyActive = true;
+      Serial.println("Melody is on");
+
+    } else if (cmd == "melodyOff") {
+      melodyActive = false;
+      noTone(BUZZ_PIN);
+      Serial.println("Melody is off");
+
+    } else if (cmd == "sirenOn") {
+      sirenActive = true;
+      Serial.println("Siren is on");
+
+    } else if (cmd == "sirenOff") {
+      sirenActive = false;
+      noTone(BUZZ_PIN);
+      Serial.println("Siren is off");
+
+    } else if (cmd == "megalovaniaOn") {
+      megalovaniaActive = true;
+      Serial.println("Megalovania is on");
+
+    } else if (cmd == "megalovaniaOff") {
+      megalovaniaActive = false;
+      noTone(BUZZ_PIN);
+      Serial.println("Megalovania is off");
+
+    } else if (cmd == "portalMainThemeOn") {
+      portalMainThemeActive = true;
+      Serial.println("Portal Main Theme on");
+
+    } else if (cmd == "portalMainThemeOff") {
+      portalMainThemeActive = false;
+      noTone(BUZZ_PIN);
+      Serial.println("Portal Main Theme off");
+
+    } else if (cmd == "apertureThemeOn") {
+      apertureThemeActive = true;
+      Serial.println("Aperture Theme is on");
+
+    } else if (cmd == "apertureThemeOff") {
+      apertureThemeActive = false;
+      noTone(BUZZ_PIN);
+      Serial.println("Aperture Theme is off");
+
+    } else if (cmd == "overworldThemeOn") {
+      overworldThemeActive = true;
+      Serial.println("Overworld theme is on");
+
+    } else if (cmd == "overworldThemeOff") {
+      overworldThemeActive = false;
+      noTone(BUZZ_PIN);
+      Serial.println("Overworld theme is off");
+
+    } else if (cmd == "undergroundThemeOn") {
+      undergroundThemeActive = true;
+      Serial.println("Underground theme is on");
+
+    } else if (cmd == "undergroundThemeOff") {
+      undergroundThemeActive = false;
+      noTone(BUZZ_PIN);
+      Serial.println("Underground theme is off");
+
+    } else if (cmd == "rotateServo90") {
+      servoPos += 90;
+
+      if (servoPos >= 180) servoPos = 180;
+
+      servo.write(servoPos);
+      Serial.println("Rotated the servo 90 deg");
+
+    } else if (cmd == "rotateServo-90") {
+      servoPos -= 90;
+
+      if (servoPos <= 0) servoPos = 0;
+
+      servo.write(servoPos);
+      Serial.println("Roated the servo negative 90 deg");
+
+    } else if (cmd == "servoSpinOn") {
+      servoSpinActive = true;
+      Serial.println("Servo spin is on");
+
+    } else if (cmd == "servoSpinOff") {
+      servoSpinActive = false;
+      servoPos = 90;
+      servo.write(servoPos);
+      Serial.println("Servo spin is off");
+
+    } else if (cmd == "rotatePrecise") {
+      int deg = arg.toInt();
+      servoPos = deg;
+      servo.write(servoPos);
+      Serial.println("Rotated precisely!");
+
+    } else if (cmd == "servoJoyControlOn") {
+      servoJoystickActive = true;
+      Serial.println("Rotating with joystick is on");
+
+    } else if (cmd == "servoJoyControlOff") {
+      servoJoystickActive = false;
+      Serial.println("Rotating with joystick is off");
+
+    } else if (cmd == "lightJoyControlOn") {
+      lightJoystickActive = true;
+      Serial.println("Controlling lights with joystick is on");
+
+    } else if (cmd == "lightJoyControlOff") {
+      lightJoystickActive = false;
+      turnAllLEDsOff();
+
+    } else if (cmd == "buzzerJoyControlOn") {
+      buzzerJoystickActive = true;
+      Serial.println("Controlling buzzer with joystick is on");
+
+    } else if (cmd == "buzzerJoyControlOff") {
+      buzzerJoystickActive = false;
+      noTone(BUZZ_PIN);
+      Serial.println("Controlling buzzer with joystick is off");
+
+    } else {
+      Serial.print("unknown command: ");
+      Serial.println(cmd);
+    }
+  }
+
+  if (rgbShowActive) {
+    RGB(75);
+  }
+
+  if (melodyActive) {
+    playMelody();
+  }
+
+  if (sirenActive) {
+    siren();
+  }
+
+  if (megalovaniaActive) {
+    megalovania();
+  }
+
+  if (portalMainThemeActive) {
+    portalTheme();
+  }
+
+  if (apertureThemeActive) {
+    apertureTheme();
+  }
+
+  if (overworldThemeActive) {
+    marioOverworld();
+  }
+  
+  if (undergroundThemeActive) {
+    marioUnderground();
+  }
+
+  if (servoSpinActive) {
+    servoSpinNonBlocking();
+  }
+
+  if (servoJoystickActive) {
+    int button = digitalRead(joyBtn);
+
+    if (button == LOW) {
+      servoSpinNonBlocking();
+    } else {
+      long total = 0;
+      const int samples = 5;
+      for (int i = 0; i < samples; i++) {
+        total += analogRead(joyX);
+      }
+      int avg = total / samples;
+
+      servoPos = map(avg, 0, 1023, 0, 180);
+      servo.write(servoPos);
+    }
+  }
+
+  if (lightJoystickActive) {
+    int xVal = analogRead(joyX);
+    int yVal = analogRead(joyY);
+    int button = digitalRead(joyBtn);
+
+    int deadzone = 200;
+
+    turnAllLEDsOff();
+
+    // right 
+    if (xVal > 512 + deadzone) {
+      digitalWrite(BLUE_LED_PIN, HIGH);
+    } 
+
+    // left
+    else if (xVal < 512 - deadzone) {
+      digitalWrite(YELLOW_LED_PIN, HIGH);
+    }
+
+    // up
+    if (yVal > 512 + deadzone) {
+      digitalWrite(RED_LED_PIN, HIGH);
+    }
+
+    // down
+    else if (yVal < 512 - deadzone) {
+      digitalWrite(GREEN_LED_PIN, HIGH);
+    }
+
+    if (xVal == 512 && yVal == 512 && !allLightsOnToggle) {
+      turnAllLEDsOff();
+    }
+
+    if (button == LOW) {
+      allLightsOnToggle = !allLightsOnToggle;
+
+      if (allLightsOnToggle) {
+        turnAllLEDsOn();
+      } else {
+        turnAllLEDsOff();
+      }
+    }
+
+    if (buzzerJoystickActive) {
+      int xVal = analogRead(joyX);
+      int yVal = analogRead(joyY);
+      int button = digitalRead(joyBtn);
+      
+      static unsigned long lastUpdate = 0;
+      if (millis() - lastUpdate > 50) {  // update every 50ms
+        int freq = map(yVal, 0, 1023, 100, 2000);
+        int duration = map(xVal, 0, 1023, 20, 300);
+        int vibrato = sin(millis() / (duration * 5.0)) * 50;
+        tone(BUZZ_PIN, freq + vibrato);
+        lastUpdate = millis();
+      }
+    }
+  }
+}
+
+void RGB(int delayTime) {
+
+  digitalWrite(BLUE_LED_PIN, HIGH);
+
+  delay(delayTime);
+
+  digitalWrite(BLUE_LED_PIN, LOW);
+  digitalWrite(GREEN_LED_PIN, HIGH);
+
+  delay(delayTime);
+
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(RED_LED_PIN, HIGH);
+
+  delay(delayTime);
+
+  digitalWrite(RED_LED_PIN, LOW);
+  digitalWrite(YELLOW_LED_PIN, HIGH);
+
+  delay(delayTime);
+
+  digitalWrite(YELLOW_LED_PIN, LOW);
+  digitalWrite(RED_LED_PIN, HIGH);
+
+  delay(delayTime);
+
+  digitalWrite(RED_LED_PIN, LOW);
+  digitalWrite(GREEN_LED_PIN, HIGH);
+
+  delay(delayTime);
+
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(BLUE_LED_PIN, HIGH);
+
+  delay(delayTime);
+
+  digitalWrite(BLUE_LED_PIN, LOW);
+}
+
+void turnAllLEDsOff() {
+  digitalWrite(BLUE_LED_PIN, LOW);
+  digitalWrite(GREEN_LED_PIN, LOW);
+  digitalWrite(RED_LED_PIN, LOW);
+  digitalWrite(YELLOW_LED_PIN, LOW);
+}
+
+void turnAllLEDsOn() {
+  digitalWrite(BLUE_LED_PIN, HIGH);
+  digitalWrite(GREEN_LED_PIN, HIGH);
+  digitalWrite(RED_LED_PIN, HIGH);
+  digitalWrite(YELLOW_LED_PIN, HIGH);
+}
+
+void playMelody() {
+  int melody[] = {262, 294, 330, 349, 392, 440, 494, 523}; // C D E F G A B C
+  int noteDuration = 200;
+
+  for (int i = 0; i < 8; i++) {
+    tone(BUZZ_PIN, melody[i]);
+    delay(noteDuration);
+    noTone(BUZZ_PIN);
+    delay(50);
+  }
+}
+
+void megalovania() {
+  int melody[] = {147, 147, 294, 220, 208, 196, 175, 147, 175, 196, 131, 131, 294, 220, 208, 196, 175, 147, 175, 196, 123, 123, 294, 220, 208, 196, 175, 147, 175, 196, 117, 117, 294, 220, 208, 196, 175, 147, 175, 196};
+  int noteDuration[] = {300, 300, 400, 300, 250, 250, 300, 400, 300, 300, 300, 300, 400, 300, 250, 250, 300, 400, 300, 300, 300, 300, 400, 300, 250, 250, 300, 400, 300, 300, 300, 300, 400, 300, 250, 250, 300, 400, 300, 300};
+
+  int length = sizeof(melody) / sizeof(melody[0]);
+
+  for (int i = 0; i < length; i++) {
+    tone(BUZZ_PIN, melody[i]);
+    delay(noteDuration[i]);
+    noTone(BUZZ_PIN);
+    delay(10);
+  }
+}
+
+void portalTheme() {
+  int melody[] = {175, 262, 196, 208, 175, 262, 196, 233, 175, 262, 196, 208, 233, 208, 196, 175, // 1st half
+  0, // pause
+  175, 262, 208, 233, 196, 208, 175, 165, 175, 262, 208, 233, 277, 196, 233, 165}; // 2nd half
+
+  int noteDuration[] = {200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 
+  300, // pause
+  350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 350, 400, 400, 400};
+
+  int length = sizeof(melody) / sizeof(melody[0]);
+
+  for (int i = 0; i < length; i++) {
+    if (melody[i] > 0) tone(BUZZ_PIN, melody[i]);
+    delay(noteDuration[i]);
+    noTone(BUZZ_PIN);
+    delay(10);
+  }
+}
+
+void apertureTheme() {
+  int melody[] = {175, 233, 294, 349, 294, 233};
+  int noteDuration = 500;
+
+  int length = sizeof(melody) / sizeof(melody[0]);
+
+  for (int i = 0; i < length; i++) {
+    if (melody[i] > 0) tone(BUZZ_PIN, melody[i]);
+    delay(noteDuration);
+    noTone(BUZZ_PIN);
+    delay(10);
+  }
+}
+
+void marioOverworld() {
+  int melody[] = {
+    2637, 2637, 0, 2637,
+    0, 2093, 2637, 0,
+    3136, 0, 0,  0,
+    1568, 0, 0, 0,
+
+    2093, 0, 0, 1568,
+    0, 0, 1319, 0,
+    0, 1760, 0, 1976,
+    0, 1865, 1760, 0,
+
+    1568, 2637, 3136,
+    3520, 0, 2794, 3136,
+    0, 2637, 0, 2093,
+    2349, 1976, 0, 0
+  };
+
+  int noteDuration[] = {
+    125, 125, 125, 125,
+    125, 125, 125, 125,
+    125, 125, 125, 125,
+    125, 125, 125, 125,
+
+    125, 125, 125, 125,
+    125, 125, 125, 125,
+    125, 125, 125, 125,
+    125, 125, 125, 125,
+
+    125, 125, 125,
+    125, 125, 125, 125,
+    125, 125, 125, 125,
+    125, 125, 125, 125
+  };
+
+  int length = sizeof(melody) / sizeof(melody[0]);
+
+  for (int i = 0; i < length; i++) {
+    if (melody[i] > 0) tone(BUZZ_PIN, melody[i]);
+    delay(noteDuration[i]);
+    noTone(BUZZ_PIN);
+    delay(10);
+  }
+}
+
+void marioUnderground() {
+  int melody[] = {
+    262, 523, 220, 440,
+    233, 466, 0,
+    0, 262, 523, 220, 440,
+    233, 466, 0,
+    0, 175, 349, 147, 294,
+    156, 311, 0,
+    0, 175, 349, 147, 294,
+    156, 311, 0, 0,
+  };
+
+  int noteDuration[] = {
+    250, 250, 250, 250,
+    250, 250, 250,
+    125, 250, 250, 250, 250,
+    250, 250, 250,
+    125, 250, 250, 250, 250,
+    250, 250, 250,
+    125, 250, 250, 250, 250,
+    250, 250, 250, 250,
+  };
+
+  int length = sizeof(melody) / sizeof(melody[0]);
+
+  for (int i = 0; i < length; i++) {
+    if (melody[i] > 0) tone(BUZZ_PIN, melody[i]);
+    delay(noteDuration[i]);
+    noTone(BUZZ_PIN);
+    delay(10);
+  }
+}
+
+void siren() {
+  for (int freq = 400; freq <= 1000; freq += 10) {
+    tone(BUZZ_PIN, freq);
+    delay(5);
+  }
+  for (int freq = 1000; freq >= 400; freq -= 10) {
+    tone(BUZZ_PIN, freq);
+    delay(5);
+  }
+}
+
+void servoSpinNonBlocking() {
+    unsigned long currentTime = millis();
+    if (currentTime - lastMoveTime >= 50) { // move every 50ms
+        lastMoveTime = currentTime;
+
+        servoPos += servoStep * servoDir;
+
+        if (servoPos >= 180) servoDir = -1; // reverse
+        if (servoPos <= 0)   servoDir = 1;  // reverse
+
+        servo.write(servoPos);
+    }
+}
