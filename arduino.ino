@@ -22,8 +22,14 @@ bool allLightsOnToggle = false;
 bool buzzerJoystickActive = false;
 bool ledMatrixLoopActive = false;
 bool ledMatrixSmileyActive = false;
+bool ledMatrixRandomActive = false;
+bool ledMatrixJoystickActive = false;
 
-Servo servo;
+const int num_servo = 2;
+
+Servo servo[num_servo];
+int servoPins[num_servo] = {6, 7};
+
 int servoPos;
 int joyX = A0;
 int joyY = A1;
@@ -42,8 +48,11 @@ void setup() {
   Serial.begin(9600);
 
   servoPos = 90;
-  servo.attach(6);
-  servo.write(servoPos);
+  
+  for (int i = 0; i < num_servo; i++) {
+    servo[i].attach(servoPins[i]);
+    servo[i].write(servoPos);
+  }
 
   pinMode(joyX, INPUT);
   pinMode(joyY, INPUT);
@@ -59,6 +68,8 @@ void setup() {
   lc.shutdown(0, false);
   lc.setIntensity(0, 8);
   lc.clearDisplay(0);
+
+  randomSeed(analogRead(0));
 
   Serial.println("Arduino ready!");
 }
@@ -194,7 +205,10 @@ void loop() {
 
       if (servoPos >= 180) servoPos = 180;
 
-      servo.write(servoPos);
+      for (int i = 0; i < num_servo; i++) {
+        servo[i].write(servoPos);
+      }
+
       Serial.println("Rotated the servo 90 deg");
 
     } else if (cmd == "rotateServo-90") {
@@ -202,7 +216,10 @@ void loop() {
 
       if (servoPos <= 0) servoPos = 0;
 
-      servo.write(servoPos);
+      for (int i = 0; i < num_servo; i++) {
+        servo[i].write(servoPos);
+      }
+
       Serial.println("Roated the servo negative 90 deg");
 
     } else if (cmd == "servoSpinOn") {
@@ -212,13 +229,21 @@ void loop() {
     } else if (cmd == "servoSpinOff") {
       servoSpinActive = false;
       servoPos = 90;
-      servo.write(servoPos);
+
+      for (int i = 0; i < num_servo; i++) {
+        servo[i].write(servoPos);
+      }
+
       Serial.println("Servo spin is off");
 
     } else if (cmd == "rotatePrecise") {
       int deg = arg.toInt();
       servoPos = deg;
-      servo.write(servoPos);
+      
+      for (int i = 0; i < num_servo; i++) {
+        servo[i].write(servoPos);
+      }
+
       Serial.println("Rotated precisely at: " + arg + " deg");
 
     } else if (cmd == "servoJoyControlOn") {
@@ -227,6 +252,12 @@ void loop() {
 
     } else if (cmd == "servoJoyControlOff") {
       servoJoystickActive = false;
+
+      servoPos = 90;
+      for (int i = 0; i < num_servo; i++) {
+        servo[i].write(servoPos);
+      }
+
       Serial.println("Rotating with joystick is off");
 
     } else if (cmd == "lightJoyControlOn") {
@@ -269,6 +300,7 @@ void loop() {
 
     } else if (cmd == "ledMatrixSmileyOff") {
       ledMatrixSmileyActive = false;
+      lc.clearDisplay(0);
       Serial.println("LED Matrix Smiley is off");
 
     } else if (cmd == "ledMatrixCountdown") {
@@ -294,6 +326,15 @@ void loop() {
         delay(1000);
       }
       lc.clearDisplay(0);
+
+    } else if (cmd == "ledMatrixRandomOn") {
+      ledMatrixRandomActive = true;
+      Serial.println("LED Matrix Random is on");
+
+    } else if (cmd == "ledMatrixRandomOff") {
+      ledMatrixRandomActive = false;
+      lc.clearDisplay(0);
+      Serial.println("LED Matrix Random is off");
 
     } else {
       Serial.print("unknown command: ");
@@ -343,15 +384,21 @@ void loop() {
     if (button == LOW) {
       servoSpinNonBlocking();
     } else {
-      long total = 0;
+      long totalX = 0;
+      long totalY = 0;
       const int samples = 5;
       for (int i = 0; i < samples; i++) {
-        total += analogRead(joyX);
+        totalX += analogRead(joyX);
+        totalY += analogRead(joyY);
       }
-      int avg = total / samples;
+      int avgX = totalX / samples;
+      int avgY = totalY / samples;
 
-      servoPos = map(avg, 0, 1023, 0, 180);
-      servo.write(servoPos);
+      int posX = map(avgX, 0, 1023, 0, 180);
+      int posY = map(avgY, 0, 1023, 0, 180);
+
+      servo[1].write(posX);
+      servo[2].write(posY);
     }
   }
 
@@ -455,6 +502,18 @@ void loop() {
         lc.setLed(0, row, col, ledOn);
       }
     }
+  }
+
+  if (ledMatrixRandomActive) {
+    for (int row = 0; row < 8; row++) {
+      byte randomByte = random(0, 256);
+      lc.setRow(0, row, randomByte);
+    }
+    delay(75);
+  }
+
+  if (ledMatrixJoystickActive) {
+
   }
 }
 
@@ -660,7 +719,7 @@ void siren() {
 
 void servoSpinNonBlocking() {
     unsigned long currentTime = millis();
-    if (currentTime - lastMoveTime >= 50) { // move every 50ms
+    if (currentTime - lastMoveTime >= 25) { // move every 50ms
         lastMoveTime = currentTime;
 
         servoPos += servoStep * servoDir;
@@ -668,6 +727,8 @@ void servoSpinNonBlocking() {
         if (servoPos >= 180) servoDir = -1; // reverse
         if (servoPos <= 0)   servoDir = 1;  // reverse
 
-        servo.write(servoPos);
+        for (int i = 0; i < num_servo; i++) {
+          servo[i].write(servoPos);
+        }
     }
 }

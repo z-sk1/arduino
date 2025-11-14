@@ -57,9 +57,10 @@ func onReady() {
 	mControlJoystick := sServo.AddSubMenuItem("Control the Servo with Joystick", "Control your Servo using a Joystick on the X-Axis")
 
 	sMatrix := systray.AddMenuItem("LED Matrix", "LED Matrix Section")
-	mTurnOnMatrix := sMatrix.AddSubMenuItem("Turn on LED Matrix", "Start a loop that turns on and off the matrix")
-	mTurnOnMatrixSmiley := sMatrix.AddSubMenuItem("Turn on Smiley Face", "Draw a Smiley Face on the LED Matrix")
+	mToggleMatrix := sMatrix.AddSubMenuItem("Turn on LED Matrix", "Start a loop that turns on and off the matrix")
+	mToggleMatrixSmiley := sMatrix.AddSubMenuItem("Turn on Smiley Face", "Draw a Smiley Face on the LED Matrix")
 	mCountDownMatrix := sMatrix.AddSubMenuItem("Count Down", "Draw a count down from 9 - 0 on the LED Matrix")
+	mRandomMatrix := sMatrix.AddSubMenuItem("Turn on Random LED Matrix", "Make every light turn on and off randomly")
 
 	systray.AddSeparator()
 
@@ -86,6 +87,7 @@ func onReady() {
 		buzzingPreciselyOn = false
 		ledMatrixOn        = false
 		ledMatrixSmileyOn  = false
+		ledMatrixRandomOn  = false
 	)
 
 	go func() {
@@ -448,13 +450,13 @@ func onReady() {
 					buzzingPreciselyOn = false
 				}
 
-			case <-mTurnOnMatrix.ClickedCh:
+			case <-mToggleMatrix.ClickedCh:
 				if ledMatrixOn {
 					if err := Device.Exec("ledMatrixOff"); err != nil {
 						log.Printf("Failed to send command: %v", err)
 					}
 
-					mTurnOnMatrix.SetTitle("Turn on LED Matrix")
+					mToggleMatrix.SetTitle("Turn on LED Matrix")
 
 					ledMatrixOn = false
 				} else {
@@ -462,18 +464,18 @@ func onReady() {
 						log.Printf("Failed to send command: %v", err)
 					}
 
-					mTurnOnMatrix.SetTitle("Turn off LED Matrix")
+					mToggleMatrix.SetTitle("Turn off LED Matrix")
 
 					ledMatrixOn = true
 				}
 
-			case <-mTurnOnMatrixSmiley.ClickedCh:
+			case <-mToggleMatrixSmiley.ClickedCh:
 				if ledMatrixSmileyOn {
 					if err := Device.Exec("ledMatrixSmileyOff"); err != nil {
 						log.Printf("Failed to send command: %v", err)
 					}
 
-					mTurnOnMatrixSmiley.SetTitle("Turn off Smiley Face")
+					mToggleMatrixSmiley.SetTitle("Turn off Smiley Face")
 
 					ledMatrixSmileyOn = false
 				} else {
@@ -481,7 +483,7 @@ func onReady() {
 						log.Printf("Failed to send command: %v", err)
 					}
 
-					mTurnOnMatrixSmiley.SetTitle("Turn on Smiley Face")
+					mToggleMatrixSmiley.SetTitle("Turn on Smiley Face")
 
 					ledMatrixSmileyOn = true
 				}
@@ -489,6 +491,25 @@ func onReady() {
 			case <-mCountDownMatrix.ClickedCh:
 				if err := Device.Exec("ledMatrixCountdown"); err != nil {
 					log.Printf("Failed to send command: %v", err)
+				}
+
+			case <-mRandomMatrix.ClickedCh:
+				if ledMatrixRandomOn {
+					if err := Device.Exec("ledMatrixRandomOff"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mRandomMatrix.SetTitle("Turn on Random LED Matrix")
+
+					ledMatrixRandomOn = false
+				} else {
+					if err := Device.Exec("ledMatrixRandomOn"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mRandomMatrix.SetTitle("Turn off Random LED Matrix")
+
+					ledMatrixRandomOn = true
 				}
 
 			case <-mQuit.ClickedCh:
