@@ -692,16 +692,36 @@ void loop() {
     }
   }
 
+  float smoothDist = 30;
+  if (ledMatrixUltrasoundActive) {
+    long dist = getDistance();
+
+    float alpha = 0.2;
+    
+    smoothDist = alpha * dist + (1 - alpha) * smoothDist;
+
+    int boxSize;
+    if (smoothDist > 40) boxSize = 2;
+    else if (smoothDist < 30) boxSize = 3;
+    else if (smoothDist < 20) boxSize = 4;
+    else if (smoothDist < 10) boxSize = 6;
+    else boxSize = 8;
+
+    int start = (8 - boxSize) / 2;
+    int end = start + boxSize - 1;
+
+
+    lc.clearDisplay(0);
+
+    for (int row = start; row <= end; row++) {
+      for (int col = start; col <= end; col++) {
+        lc.setLed(0, row, col, true);
+      }
+    }
+  }
+
   if (ultrasoundReadActive) {
-    digitalWrite(trigPin, LOW);
-    delayMicroseconds(2);
-    digitalWrite(trigPin, HIGH);
-    delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
-
-    long dur = pulseIn(echoPin, HIGH);
-
-    long dist = dur * 0.034 / 2;
+    long dist = getDistance();
 
     Serial.print("Distance: ");
     Serial.print(dist);
@@ -709,6 +729,19 @@ void loop() {
 
     delay(80);
   }
+}
+
+long getDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH);
+  long distance = duration * 0.034 / 2;
+
+  return distance; // in cm
 }
 
 void RGB(int delayTime) {
