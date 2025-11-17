@@ -1,10 +1,10 @@
 #include <Servo.h>
 #include <LedControl.h>
 
-#define BLUE_LED_PIN 11
-#define GREEN_LED_PIN 10
-#define RED_LED_PIN 9
-#define YELLOW_LED_PIN 13
+#define BLUE_LED_PIN 8
+#define GREEN_LED_PIN 9
+#define RED_LED_PIN 10
+#define YELLOW_LED_PIN 11
 #define BUZZ_PIN 12
 
 bool rgbShowActive = false;
@@ -23,17 +23,23 @@ bool buzzerJoystickActive = false;
 bool ledMatrixLoopActive = false;
 bool ledMatrixSmileyActive = false;
 bool ledMatrixRandomActive = false;
-bool ledMatrixJoystickActive = false;
+bool ledMatrixJoystickGridActive = false;
+bool ledMatrixJoystickAimActive = false;
+bool potControlLED = false;
+bool ultrasoundControlLED = false;
+bool ultrasoundReadActive = false;
 
 const int num_servo = 2;
 
 Servo servo[num_servo];
-int servoPins[num_servo] = {6, 7};
+int servoPins[num_servo] = {5, 6};
 
 int servoPos;
 int joyX = A0;
 int joyY = A1;
-int joyBtn = 5;
+int joyBtn = 26;
+
+int potPin = A2;
 
 // pins: DIN, CLK, CS
 LedControl lc = LedControl(2, 4, 3, 1);
@@ -43,6 +49,9 @@ int servoStep = 5;  // how many degrees to move each step
 int servoDir = 1;
 
 unsigned long lastBuzzTime = 0;
+
+int trigPin = 34;
+int echoPin = 36;
 
 void setup() {
   Serial.begin(9600);
@@ -64,6 +73,9 @@ void setup() {
   pinMode(YELLOW_LED_PIN, OUTPUT);
 
   pinMode(BUZZ_PIN, OUTPUT);
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
 
   lc.shutdown(0, false);
   lc.setIntensity(0, 8);
@@ -336,14 +348,58 @@ void loop() {
       lc.clearDisplay(0);
       Serial.println("LED Matrix Random is off");
 
-    } else if (cmd == "ledMatrixJoyControlOn") {
-      ledMatrixJoystickActive = true;
+    } else if (cmd == "ledMatrixJoyControlGridOn") {
+      ledMatrixJoystickGridActive = true;
       Serial.println("LED Matrix Joystick control is on");
 
-    } else if (cmd == "ledMatrixJoyControlOff") {
-      ledMatrixJoystickActive = false;
+    } else if (cmd == "ledMatrixJoyControlGridOff") {
+      ledMatrixJoystickGridActive = false;
       lc.clearDisplay(0);
       Serial.println("LED Matrix Joystick control is off");
+
+    } else if (cmd == "ledMatrixClear") {
+      lc.clearDisplay(0);
+      Serial.println("LED Matrix cleared");
+
+    } else if (cmd == "ledMatrixBrightness") {
+      int brightness = arg.toInt();
+      lc.setIntensity(0, brightness);
+      Serial.println("Set LED Matrix brightness to: " + arg);
+
+    } else if (cmd == "ledPotControlOn") {
+      potControlLED = true;
+      Serial.println("Controlling LED brightness with Potentiometer is on");
+ 
+    } else if (cmd == "ledPotControlOff") {
+      potControlLED = false;
+      turnAllLEDsOff();
+      Serial.println("Controlling LED Brightness with Potentiometer is off");
+
+    } else if (cmd == "ledMatrixJoyControlAimOn") {
+      ledMatrixJoystickAimActive = true;
+      Serial.println("LED Matrix Joystick crosshair control is on");
+
+    } else if (cmd == "ledMatrixJoyControlAimOff") {
+      ledMatrixJoystickAimActive = false;
+      lc.clearDisplay(0);
+      Serial.println("LED Matrix Joystick crosshair control is off");
+
+    } else if (cmd == "ultrasoundReadOn") {
+      ultrasoundReadActive = true;
+      Serial.println("Ultrasound Read is on");
+
+    } else if (cmd == "ultrasoundReadOff") {
+      ultrasoundReadActive = false;
+      Serial.println("Ultrasound Read is off");
+
+    } else if (cmd == "ledUltrasoundControlOn") {
+      ultrasoundControlLED = true;
+      Serial.println("Controlling LED Brightness with Ultrasound is on");
+
+    } else if (cmd == "ledUltrasoundControlOff") {
+      ultrasoundControlLED = false;
+      turnAllLEDsOff();
+      Serial.println("Controlling LED Brightness with Ultrasound is off");
 
     } else {
       Serial.print("unknown command: ");
@@ -395,19 +451,27 @@ void loop() {
     } else {
       long totalX = 0;
       long totalY = 0;
+
       const int samples = 5;
+      const int center = 512;
+      const int deadzone = 50;
       for (int i = 0; i < samples; i++) {
         totalX += analogRead(joyX);
         totalY += analogRead(joyY);
       }
+
       int avgX = totalX / samples;
       int avgY = totalY / samples;
+
+      // Apply deadzone
+      if (abs(avgX - center) < deadzone) avgX = center;
+      if (abs(avgY - center) < deadzone) avgY = center;
 
       int posX = map(avgX, 0, 1023, 0, 180);
       int posY = map(avgY, 0, 1023, 0, 180);
 
-      servo[1].write(posX);
-      servo[2].write(posY);
+      servo[0].write(posX);
+      servo[1].write(posY);
     }
   }
 
@@ -453,6 +517,40 @@ void loop() {
         turnAllLEDsOff();
       }
     }
+  }
+
+  if (potControlLED) {
+    int val = analogRead(potPin);
+    int pwm = map(val, 0, 1023, 0, 255);
+    
+    analogWrite(BLUE_LED_PIN, pwm);
+    analogWrite(GREEN_LED_PIN, pwm);
+    analogWrite(RED_LED_PIN, pwm);
+    analogWrite(YELLOW_LED_PIN, pwm);
+  }
+
+  float smoothDist = 0;
+
+  if (ultrasoundControlLED) {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+
+    long dur = pulseIn(echoPin, HIGH);
+    float dist = dur * 0.034 / 2;
+
+    float alpha = 0.1;
+    smoothDist = alpha * dist + (1 - alpha) * smoothDist;
+
+    int pwm = map(smoothDist, 100, 0, 255, 0);
+    pwm = constrain(pwm, 0, 255);
+
+    analogWrite(BLUE_LED_PIN, pwm);
+    analogWrite(GREEN_LED_PIN, pwm);
+    analogWrite(RED_LED_PIN, pwm);
+    analogWrite(YELLOW_LED_PIN, pwm);
   }
 
   if (buzzerJoystickActive) {
@@ -515,26 +613,101 @@ void loop() {
 
   if (ledMatrixRandomActive) {
     for (int row = 0; row < 8; row++) {
-      byte randomByte = random(0, 256);
-      lc.setRow(0, row, randomByte);
+      for (int col = 0; col < 8; col++) {
+        bool state = random(0, 2);
+        lc.setLed(0, row, col, state);
+      }
     }
     delay(75);
   }
 
-  if (ledMatrixJoystickActive) {
+  int prevX = -1;
+  int prevY = -1;
+
+  if (ledMatrixJoystickGridActive) {
+    int button = digitalRead(joyBtn);
     int xVal = analogRead(joyX);
     int yVal = analogRead(joyY);
 
-    int levelX = map(xVal, 0, 1023, 0, 8);
-    int levelY = map(yVal, 0, 1023, 0, 8);
-
-    lc.clearDisplay(0);
-
-    for (int col = 0; col < levelX; col++) {
-      for (int row = 0; row < levelY; row++) {
-        lc.setLed(0, row, col, true);
+    if (button == LOW) {
+      for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+          bool state = random(0, 2);
+          lc.setLed(0, row, col, state);
+        }
       }
+      delay(75);
+    } else {
+      // map to 0–7
+      int levelX = map(xVal, 0, 1023, 0, 8);
+      int levelY = map(yVal, 0, 1023, 0, 8);
+
+      // --- DEADZONE to prevent turning off ---
+      if (abs(levelX - prevX) < 1 && abs(levelY - prevY) < 1) {
+        return; // skip update
+      }
+
+      // update only when needed
+      lc.clearDisplay(0);
+
+      for (int col = 0; col <= levelX; col++) {
+        for (int row = 0; row <= levelY; row++) {
+          lc.setLed(0, row, col, true);
+        }
+      }
+
+      prevX = levelX;
+      prevY = levelY;
     }
+  }
+
+  if (ledMatrixJoystickAimActive) {
+    int button = digitalRead(joyBtn);
+    int xVal = analogRead(joyX);
+    int yVal = analogRead(joyY);
+
+    if (button == LOW) {
+      for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+          bool state = random(0, 2);
+          lc.setLed(0, row, col, state);
+        }
+      }
+      delay(75);
+    } else {
+      int cx = map(xVal, 0, 1023, 1, 7);
+      int cy = map(yVal, 0, 1023, 1, 7);
+
+      // horizontal line along row
+      for (int col = 0; col < 8; col++) {
+        lc.setLed(0, cy, col, true);
+      }
+
+      // vertical line along column
+      for (int row = 0; row < 8; row++) {
+        lc.setLed(0, row, cx, true);
+      }
+
+      lc.clearDisplay(0);
+    }
+  }
+
+  if (ultrasoundReadActive) {
+    digitalWrite(trigPin, LOW);
+    delayMicroseconds(2);
+    digitalWrite(trigPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(trigPin, LOW);
+
+    long dur = pulseIn(echoPin, HIGH);
+
+    long dist = dur * 0.034 / 2;
+
+    Serial.print("Distance: ");
+    Serial.print(dist);
+    Serial.println(" cm");
+
+    delay(80);
   }
 }
 

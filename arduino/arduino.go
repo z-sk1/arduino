@@ -3,8 +3,9 @@ package arduino
 import (
 	"fmt"
 
-	"github.com/tarm/serial"
 	"strings"
+
+	"github.com/tarm/serial"
 )
 
 type Device struct {

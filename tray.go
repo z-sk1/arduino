@@ -7,6 +7,8 @@ import (
 
 	"strconv"
 
+	"strings"
+
 	"github.com/getlantern/systray"
 	"github.com/ncruces/zenity"
 )
@@ -23,6 +25,36 @@ func onReady() {
 	systray.SetTooltip("Control your Arduino from here!")
 
 	systray.SetIcon(iconData)
+
+	var (
+		blueLedOn               = false
+		greenLedOn              = false
+		redLedOn                = false
+		yellowLedOn             = false
+		buzzOn                  = false
+		rgbShowOn               = false
+		melodyOn                = false
+		sirenOn                 = false
+		megalovaniaOn           = false
+		portalThemeMainOn       = false
+		apertureThemeOn         = false
+		overworldThemeOn        = false
+		undergroundThemeOn      = false
+		servoSpinOn             = false
+		servoJoystickOn         = false
+		lightsJoystickOn        = false
+		buzzerJoystickOn        = false
+		buzzingPreciselyOn      = false
+		ledMatrixOn             = false
+		ledMatrixSmileyOn       = false
+		ledMatrixRandomOn       = false
+		ledMatrixJoystickGridOn = false
+		ledMatrixJoystickAimOn  = false
+		ledControlWithPot       = false
+		ledControlWithUltra     = false
+		ultraReadingOn          = false
+	)
+
 	// menu items
 	sLights := systray.AddMenuItem("Lights", "Lights sections")
 	mToggleBlueLED := sLights.AddSubMenuItem("Turn on Blue LED", "Turn on the Blue LED")
@@ -31,6 +63,8 @@ func onReady() {
 	mToggleYellowLED := sLights.AddSubMenuItem("Turn on Yellow LED", "Turn on the Yellow LED")
 	mLightShow := sLights.AddSubMenuItem("Turn on RGB Light Show", "Turn on an RGB Light Show using the LEDS")
 	mLightControlJoystick := sLights.AddSubMenuItem("Control the light with Joystick", "Control your light using a joystick")
+	mControlLightWithPot := sLights.AddSubMenuItem("Control the brightness with Potentiometer", "Turn on all LEDS and control their brightnesses with a Potentiometer")
+	mControlLightWithUltra := sLights.AddSubMenuItem("Control the brightness with Ultrasound", "Turn on all LEDS and control their brightnesses with a Ultrasound Sensor")
 
 	sBuzz := systray.AddMenuItem("Buzzers", "Buzzer section")
 
@@ -61,38 +95,19 @@ func onReady() {
 	mToggleMatrixSmiley := sMatrix.AddSubMenuItem("Turn on Smiley Face", "Draw a Smiley Face on the LED Matrix")
 	mCountDownMatrix := sMatrix.AddSubMenuItem("Count Down", "Draw a count down from 9 - 0 on the LED Matrix")
 	mRandomMatrix := sMatrix.AddSubMenuItem("Turn on Random LED Matrix", "Make every light turn on and off randomly")
-	mControlJoystickMatrix := sMatrix.AddSubMenuItem("Control LED Matrix using Joystick", "Create a bar graph using the x value and y value of the joystick to determine which column and row")
+	sControlJoystickMatrix := sMatrix.AddSubMenuItem("Control LED Matrix using Joystick", "Create a bar graph using the x value and y value of the joystick to determine which column and row")
+	mControlJoystickMatrixGrid := sControlJoystickMatrix.AddSubMenuItem("Use Grid", "Control using a grid format")
+	mControlJoystickMatrixAim := sControlJoystickMatrix.AddSubMenuItem("Use Crosshair", "Control using a crosshair format")
 
 	mClearLEDMatrix := sMatrix.AddSubMenuItem("Clear LED Matrix", "Clear the display and reset the matrix")
+	mChangeBrightnessMatrix := sMatrix.AddSubMenuItem("Change Brightness", "Change the brightness to a number between 1-15")
+
+	sUltra := systray.AddMenuItem("Ultrasound Sensor", "Ultrasound Sensor Section")
+	mReadUltrasoundDist := sUltra.AddSubMenuItem("Read Ultrasound Distance", "Check the distance recorded by the ultrasound in cm")
 
 	systray.AddSeparator()
 
 	mQuit := systray.AddMenuItem("Quit", "Stop Controlling Arduino and Exit")
-
-	var (
-		blueLedOn           = false
-		greenLedOn          = false
-		redLedOn            = false
-		yellowLedOn         = false
-		buzzOn              = false
-		rgbShowOn           = false
-		melodyOn            = false
-		sirenOn             = false
-		megalovaniaOn       = false
-		portalThemeMainOn   = false
-		apertureThemeOn     = false
-		overworldThemeOn    = false
-		undergroundThemeOn  = false
-		servoSpinOn         = false
-		servoJoystickOn     = false
-		lightsJoystickOn    = false
-		buzzerJoystickOn    = false
-		buzzingPreciselyOn  = false
-		ledMatrixOn         = false
-		ledMatrixSmileyOn   = false
-		ledMatrixRandomOn   = false
-		ledMatrixJoystickOn = false
-	)
 
 	go func() {
 		for {
@@ -347,7 +362,7 @@ func onReady() {
 
 			case <-mRotatePrecise.ClickedCh:
 				deg, err := zenity.Entry("Enter an angle for the servo to rotate: (0-180)")
-				if err != nil {
+				if err != nil && !strings.Contains(err.Error(), "dialog canceled") {
 					log.Fatal(err)
 				}
 
@@ -425,7 +440,7 @@ func onReady() {
 			case <-mBuzzPrecise.ClickedCh:
 				if buzzingPreciselyOn {
 					freq, err := zenity.Entry("Enter a precise frequency to Buzz: (100, 5000)")
-					if err != nil {
+					if err != nil && !strings.Contains(err.Error(), "dialog canceled") {
 						log.Fatal(err)
 					}
 
@@ -516,27 +531,129 @@ func onReady() {
 					ledMatrixRandomOn = true
 				}
 
-			case <-mControlJoystickMatrix.ClickedCh:
-				if ledMatrixJoystickOn {
-					if err := Device.Exec("ledMatrixJoyControlOff"); err != nil {
+			case <-mControlJoystickMatrixGrid.ClickedCh:
+				if ledMatrixJoystickGridOn {
+					if err := Device.Exec("ledMatrixJoyControlGridOff"); err != nil {
 						log.Printf("Failed to send command: %v", err)
 					}
 
-					mControlJoystickMatrix.SetTitle("Control LED Matrix using Joystick")
+					mControlJoystickMatrixGrid.SetTitle("Control LED Matrix using Joystick")
 
-					ledMatrixJoystickOn = false
+					ledMatrixJoystickGridOn = false
 				} else {
-					if err := Device.Exec("ledMatrixJoyControlOn"); err != nil {
+					if err := Device.Exec("ledMatrixJoyControlGridOn"); err != nil {
 						log.Printf("Faled to send command: %v", err)
 					}
 
-					mControlJoystickMatrix.SetTitle("Stop Controlling LED Matrix using Joystick")
+					mControlJoystickMatrixGrid.SetTitle("Stop Controlling LED Matrix using Joystick")
 
-					ledMatrixJoystickOn = true
+					ledMatrixJoystickGridOn = true
 				}
 
 			case <-mClearLEDMatrix.ClickedCh:
-				
+				if err := Device.Exec("ledMatrixClear"); err != nil {
+					log.Printf("Failed to send command: %v", err)
+				}
+
+			case <-mChangeBrightnessMatrix.ClickedCh:
+				brightness, err := zenity.Entry("Enter Brightness for the LED Matrix: (1-15)")
+				if err != nil && !strings.Contains(err.Error(), "dialog canceled") {
+					log.Fatal(err)
+				}
+
+				brightnessInt, err := strconv.Atoi(brightness)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				if brightnessInt <= 1 {
+					brightness = "1"
+				}
+
+				if brightnessInt >= 15 {
+					brightness = "15"
+				}
+
+				if err := Device.Execf("ledMatrixBrightness %s", brightness); err != nil {
+					log.Printf("Failed to send command: %v", err)
+				}
+
+			case <-mControlLightWithPot.ClickedCh:
+				if ledControlWithPot {
+					if err := Device.Exec("ledPotControlOff"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mControlLightWithPot.SetTitle("Control the brightness with Potentiometer")
+
+					ledControlWithPot = false
+				} else {
+					if err := Device.Exec("ledPotControlOn"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mControlLightWithPot.SetTitle("Stop Controlling the brightness with Potentiometer")
+
+					ledControlWithPot = true
+				}
+
+			case <-mControlJoystickMatrixAim.ClickedCh:
+				if ledMatrixJoystickAimOn {
+					if err := Device.Exec("ledMatrixJoyControlAimOff"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mControlJoystickMatrixAim.SetTitle("Use Crosshair")
+
+					ledMatrixJoystickAimOn = false
+				} else {
+					if err := Device.Exec("ledMatrixJoyControlAimOn"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mControlJoystickMatrixAim.SetTitle("Stop using Crosshair")
+
+					ledMatrixJoystickAimOn = true
+				}
+
+			case <-mControlLightWithUltra.ClickedCh:
+				if ledControlWithUltra {
+					if err := Device.Exec("ledUltrasoundControlOff"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mControlLightWithUltra.SetTitle("Control the brightness with Ultrasound")
+
+					ledControlWithUltra = false
+				} else {
+					if err := Device.Exec("ledUltrasoundControlOn"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mControlLightWithUltra.SetTitle("Stop controlling the brightness with Ultrasound")
+
+					ledControlWithUltra = true
+				}
+
+			case <-mReadUltrasoundDist.ClickedCh:
+				if ultraReadingOn {
+					if err := Device.Exec("ultrasoundReadOff"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mReadUltrasoundDist.SetTitle("Read Ultrasound Distance")
+
+					ultraReadingOn = false
+				} else {
+					if err := Device.Exec("ultrasoundReadOn"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mReadUltrasoundDist.SetTitle("Stop Reading Ultrasound Distance")
+
+					ultraReadingOn = true
+				}
 
 			case <-mQuit.ClickedCh:
 				systray.Quit()
