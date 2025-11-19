@@ -57,6 +57,7 @@ func onReady() {
 		servoUltraOn            = false
 		buzzerUltraOn           = false
 		clockworkOn             = false
+		lcdOn                   = false
 	)
 
 	// menu items
@@ -113,6 +114,17 @@ func onReady() {
 
 	sUltra := systray.AddMenuItem("Ultrasound Sensor", "Ultrasound Sensor Section")
 	mReadUltrasoundDist := sUltra.AddSubMenuItem("Read Ultrasound Distance", "Check the distance recorded by the ultrasound in cm")
+
+	sLCD := systray.AddMenuItem("LCD Display", "LCD Display Section")
+	mToggleLCD := sLCD.AddSubMenuItem("Turn on LCD Display", "Turn on the LCD Display and its Backlight")
+	mLCDChangeBrightness := sLCD.AddSubMenuItem("Change Brightness", "Change the brightness of the LCD's backlight")
+
+	sLCDPrint := sLCD.AddSubMenuItem("Print Text", "Print Text to the LCD Display")
+	mLCDPrintStatic := sLCDPrint.AddSubMenuItem("Static", "Print Static Text")
+	mLCDPrintMoving := sLCDPrint.AddSubMenuItem("Moving", "Print Moving Text")
+
+	mLCDCursor := sLCD.AddSubMenuItem("Go To", "Guide the cursor anywhere you want on the Display using x and y coords")
+	mLCDClear := sLCD.AddSubMenuItem("Clear Display", "Clear the LCD Display and reset everything on it")
 
 	systray.AddSeparator()
 
@@ -738,6 +750,109 @@ func onReady() {
 					mToggleClockworkTheme.SetTitle("Stop playing Clockwork Dancers Theme")
 
 					clockworkOn = true
+				}
+
+			case <-mToggleLCD.ClickedCh:
+				if lcdOn {
+					if err := Device.Exec("lcdOff"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mToggleLCD.SetTitle("Turn on LCD Display")
+
+					lcdOn = false
+				} else {
+					if err := Device.Exec("lcdOn"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mToggleLCD.SetTitle("Turn off LCD Display")
+
+					lcdOn = true
+				}
+
+			case <-mLCDChangeBrightness.ClickedCh:
+				if !lcdOn {
+					zenity.Error("Turn on LCD Display First!")
+					return
+				}
+
+				brightness, err := zenity.Entry("Brightness for LCD: (1-255)")
+				if err != nil && !strings.Contains(err.Error(), "dialog canceled") {
+					log.Fatal(err)
+				}
+
+				brightnessInt, err := strconv.Atoi(brightness)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+
+				if brightnessInt <= 1 {
+					brightness = "1"
+				}
+
+				if brightnessInt >= 255 {
+					brightness = "255"
+				}
+
+				if err := Device.Execf("lcdBrightness %s", brightness); err != nil {
+					log.Printf("Failed to send command: %v", err)
+				}
+
+			case <-mLCDPrintStatic.ClickedCh:
+				if !lcdOn {
+					zenity.Error("Turn on LCD Display First!")
+					return
+				}
+
+				displayTxt, err := zenity.Entry("Enter text to print on LCD:")
+				if err != nil && !strings.Contains(err.Error(), "dialog canceled") {
+					log.Fatal(err)
+				}
+
+				if err := Device.Execf("lcdPrintStatic %s", displayTxt); err != nil {
+					log.Printf("Failed to send command: %v", err)
+				}
+
+			case <-mLCDPrintMoving.ClickedCh:
+				if !lcdOn {
+					zenity.Error("Turn on LCD Display First!")
+					return
+				}
+
+				displayTxt, err := zenity.Entry("Enter text to print on LCD:")
+				if err != nil && !strings.Contains(err.Error(), "dialog canceled") {
+					log.Fatal(err)
+				}
+
+				if err := Device.Execf("lcdPrintMoving %s", displayTxt); err != nil {
+					log.Printf("Failed to send command: %v", err)
+				}
+
+			case <-mLCDCursor.ClickedCh:
+				if !lcdOn {
+					zenity.Error("Turn on LCD Display First!")
+					return
+				}
+
+				cursor, err := zenity.Entry("Cursor row and column: (0-15), e.g (15 4)")
+				if err != nil && !strings.Contains(err.Error(), "dialog canceled") {
+					log.Fatal(err)
+				}
+
+				if err := Device.Execf("lcdGoTo %s", cursor); err != nil {
+					log.Printf("Failed to send command: %v", err)
+				}
+
+			case <-mLCDClear.ClickedCh:
+				if !lcdOn {
+					zenity.Error("Turn on LCD Display First!")
+					return
+				}
+
+				if err := Device.Exec("lcdClear"); err != nil {
+					log.Printf("Failed to send command: %v", err)
 				}
 
 			case <-mQuit.ClickedCh:

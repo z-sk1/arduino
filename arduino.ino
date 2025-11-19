@@ -33,6 +33,7 @@ bool ultrasoundReadActive = false;
 bool servoUltrasoundActive = false;
 bool buzzerUltrasoundActive = false;
 bool clockworkActive = false;
+bool lcdActive = false;
 
 const int num_servo = 2;
 
@@ -60,12 +61,24 @@ int echoPin = 36;
 
 
 // RS, E, D4, D5, D6, D7
-LiquidCrystal lcd(30, 31, 32, 33, 34, 35);
+LiquidCrystal lcd(42, 44, 46, 48, 50, 52);
+int lcdBacklight = 7;
+int backlightBrightness = 0;
+
+int lcdCursorX = 0;
+int lcdCursorY = 0;
+
+String lcdmovingText = "";
+int lcdmoveIndex = 0;
+unsigned long lcdlastMove = 0;
+int lcdmoveDelay = 150;
+bool autoScrollMode = false;
 
 void setup() {
   Serial.begin(9600);
 
   lcd.begin(16, 2);
+  lcd.noDisplay();
 
   servoPos = 90;
   
@@ -102,14 +115,17 @@ void loop() {
 
   if (Serial.available()) {
     String cmd = Serial.readStringUntil('\n');
-    String arg;
     cmd.trim();
+
+    String arg;
 
     int spaceIndex = cmd.indexOf(' ');
     if (spaceIndex > 0) {
       arg = cmd.substring(spaceIndex + 1);
+      arg.trim();
       cmd = cmd.substring(0, spaceIndex);
     }
+
 
     if (cmd == "turnBlueLedOn") {
       digitalWrite(BLUE_LED_PIN, HIGH);
@@ -449,12 +465,118 @@ void loop() {
       noTone(BUZZ_PIN);
       Serial.println("Clockwork Dancers Theme is off");
 
-    } else if (cmd == "lcdPrint") {
+    } else if (cmd == "lcdOn") {
+      lcdActive = true;
+
+      lcd.display();
+
+      analogWrite(lcdBacklight, backlightBrightness == 0 ? 255 : backlightBrightness);
+      Serial.println("LCD Display is on");
+
+    } else if (cmd == "lcdOff") {
+      lcdActive = false;
+
+      lcd.noDisplay();
+
+      analogWrite(lcdBacklight, 0);
+      Serial.println("LCD Display is off");
+
+    } else if (cmd == "lcdBrightness") {
+      if (!lcdActive) {
+        Serial.println("Turn on LCD first!");
+        return;
+      };
+
+      backlightBrightness = arg.toInt();
+      analogWrite(lcdBacklight, backlightBrightness);
+
+      Serial.print("Set LCD Backlight to ");
+      Serial.println(arg);
+
+    } else if (cmd == "lcdPrintStatic") {
+      if (!lcdActive) {
+        Serial.println("Turn on LCD first!");
+        return;
+      };
+
       lcd.clear();
+      lcd.setCursor(lcdCursorX, lcdCursorY);
       lcd.print(arg);
+      
+      Serial.print("Printed ");
+      Serial.print(arg);
+      Serial.println(" to lcd display");
+
+    } else if (cmd == "lcdPrintMoving") {
+      if (!lcdActive) {
+        Serial.println("Turn on LCD first!");
+        return;
+      }
+
+      lcd.clear();
+      lcd.setCursor(0, 0);
+
+      lcdmovingText = arg + "   ";  // add spacing
+      lcdmoveIndex = 0;
+
+      lcd.autoscroll();     // << ENABLE REAL AUTOSCROLL
+
+      autoScrollMode = true;
+
+      Serial.print("Autoscroll started: ");
+      Serial.println(arg);
+      
     } else if (cmd == "lcdGoTo") {
-      String coords = arg;
-      coords.
+      if (!lcdActive) {
+        Serial.println("Turn on LCD first!");
+        return;
+      };
+
+      int index = arg.indexOf(' ');
+      String arg1 = arg.substring(0, index);
+      String arg2 = arg.substring(index + 1);
+
+      lcdCursorX = arg1.toInt();
+      lcdCursorY = arg2.toInt();
+
+      if (lcdCursorX <= 0) {
+        lcdCursorX = 0;
+        arg1 = "0";
+      }
+
+      if (lcdCursorX >= 15) {
+        lcdCursorX = 15;
+        arg1 = "15";
+      }
+
+      if (lcdCursorY <= 0) {
+        lcdCursorY = 0;
+        arg2 = "0";
+      }
+
+      if (lcdCursorY >= 1) {
+        lcdCursorY = 1;
+        arg2 = "1";
+      }
+
+      lcd.setCursor(lcdCursorX, lcdCursorY);
+
+      Serial.print("LCD has gone to ");
+      Serial.print(arg1);
+      Serial.print(", ");
+      Serial.println(arg2);
+
+    } else if (cmd == "lcdClear") {
+      if (!lcdActive) {
+        Serial.println("Turn on LCD first!");
+        return;
+      };
+
+      lcd.clear();
+      delay(2);
+      lcd.setCursor(lcdCursorX, lcdCursorY);
+      Serial.println("Cleared LCD Display");
+      
     } else {
       Serial.print("unknown command: ");
       Serial.println(cmd);
@@ -499,6 +621,20 @@ void loop() {
 
   if (servoSpinActive) {
     servoSpinNonBlocking();
+  }
+
+  if (autoScrollMode && millis() - lcdlastMove >= lcdmoveDelay) {
+    lcdlastMove = millis();
+
+    // wrap
+    if (lcdmoveIndex >= lcdmovingText.length()) {
+      lcdmoveIndex = 0;
+    }
+
+    // print 1 char → LCD autoscroll moves display
+    lcd.print(lcdmovingText[lcdmoveIndex]);
+
+    lcdmoveIndex++;
   }
 
   if (servoJoystickActive) {
