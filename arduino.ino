@@ -1,5 +1,6 @@
 #include <Servo.h>
 #include <LedControl.h>
+#include <LiquidCrystal.h>
 
 #define BLUE_LED_PIN 8
 #define GREEN_LED_PIN 9
@@ -57,8 +58,14 @@ unsigned long lastBuzzTime = 0;
 int trigPin = 34;
 int echoPin = 36;
 
+
+// RS, E, D4, D5, D6, D7
+LiquidCrystal lcd(30, 31, 32, 33, 34, 35);
+
 void setup() {
   Serial.begin(9600);
+
+  lcd.begin(16, 2);
 
   servoPos = 90;
   
@@ -442,6 +449,12 @@ void loop() {
       noTone(BUZZ_PIN);
       Serial.println("Clockwork Dancers Theme is off");
 
+    } else if (cmd == "lcdPrint") {
+      lcd.clear();
+      lcd.print(arg);
+    } else if (cmd == "lcdGoTo") {
+      String coords = arg;
+      coords.
     } else {
       Serial.print("unknown command: ");
       Serial.println(cmd);
@@ -693,7 +706,7 @@ void loop() {
       }
       delay(75);
     } else {
-      // map to 0–7
+      // map to 0-7
       int levelX = map(xVal, 0, 1023, 0, 8);
       int levelY = map(yVal, 0, 1023, 0, 8);
 
