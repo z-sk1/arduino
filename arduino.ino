@@ -34,6 +34,7 @@ bool servoUltrasoundActive = false;
 bool buzzerUltrasoundActive = false;
 bool clockworkActive = false;
 bool lcdActive = false;
+bool lcdServoDebugActive = false;
 
 const int num_servo = 2;
 
@@ -476,6 +477,7 @@ void loop() {
     } else if (cmd == "lcdOff") {
       lcdActive = false;
 
+      lcd.clear();
       lcd.noDisplay();
 
       analogWrite(lcdBacklight, 0);
@@ -523,9 +525,22 @@ void loop() {
 
       autoScrollMode = true;
 
-      Serial.print("Autoscroll started: ");
+      Serial.print("LCD Autoscroll started: ");
       Serial.println(arg);
       
+    } else if (cmd == "lcdPrintMovingOff") {
+      if (!lcdActive) {
+        Serial.println("Turn on LCD first!");
+        return;
+      }
+
+      lcd.noAutoscroll();
+
+      autoScrollMode = false;
+      
+      lcd.clear();
+      Serial.println("LCD Autoscroll is off");
+
     } else if (cmd == "lcdGoTo") {
       if (!lcdActive) {
         Serial.println("Turn on LCD first!");
@@ -577,6 +592,15 @@ void loop() {
       lcd.setCursor(lcdCursorX, lcdCursorY);
       Serial.println("Cleared LCD Display");
       
+    } else if (cmd == "lcdDebugServoOn") {
+      lcdServoDebugActive = true;
+      Serial.println("Debugging servo on LCD is on");
+
+    } else if (cmd == "lcdDebugServoOff") {
+      lcdServoDebugActive = false;
+      lcd.clear();
+      Serial.println("Debugging servo on LCD is off");
+
     } else {
       Serial.print("unknown command: ");
       Serial.println(cmd);
@@ -635,6 +659,15 @@ void loop() {
     lcd.print(lcdmovingText[lcdmoveIndex]);
 
     lcdmoveIndex++;
+  }
+
+  if (lcdServoDebugActive) {
+
+    for (int i = 0; i < num_servo; i++) {
+      int angles[2] = {
+        servo[0].read()
+      };
+    }
   }
 
   if (servoJoystickActive) {

@@ -58,6 +58,7 @@ func onReady() {
 		buzzerUltraOn           = false
 		clockworkOn             = false
 		lcdOn                   = false
+		lcdAutoscrollOn         = false
 	)
 
 	// menu items
@@ -121,7 +122,7 @@ func onReady() {
 
 	sLCDPrint := sLCD.AddSubMenuItem("Print Text", "Print Text to the LCD Display")
 	mLCDPrintStatic := sLCDPrint.AddSubMenuItem("Static", "Print Static Text")
-	mLCDPrintMoving := sLCDPrint.AddSubMenuItem("Moving", "Print Moving Text")
+	mLCDPrintMoving := sLCDPrint.AddSubMenuItem("Autoscrolling", "Print Moving Text")
 
 	mLCDCursor := sLCD.AddSubMenuItem("Go To", "Guide the cursor anywhere you want on the Display using x and y coords")
 	mLCDClear := sLCD.AddSubMenuItem("Clear Display", "Clear the LCD Display and reset everything on it")
@@ -821,13 +822,28 @@ func onReady() {
 					return
 				}
 
-				displayTxt, err := zenity.Entry("Enter text to print on LCD:")
-				if err != nil && !strings.Contains(err.Error(), "dialog canceled") {
-					log.Fatal(err)
-				}
+				if lcdAutoscrollOn {
 
-				if err := Device.Execf("lcdPrintMoving %s", displayTxt); err != nil {
-					log.Printf("Failed to send command: %v", err)
+					if err := Device.Exec("lcdPrintMovingOff"); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mLCDPrintMoving.SetTitle("Autoscroll")
+
+					lcdAutoscrollOn = false
+				} else {
+					displayTxt, err := zenity.Entry("Enter text to print on LCD:")
+					if err != nil && !strings.Contains(err.Error(), "dialog canceled") {
+						log.Fatal(err)
+					}
+
+					if err := Device.Execf("lcdPrintMoving %s", displayTxt); err != nil {
+						log.Printf("Failed to send command: %v", err)
+					}
+
+					mLCDPrintMoving.SetTitle("Stop Autoscroll")
+
+					lcdAutoscrollOn = true
 				}
 
 			case <-mLCDCursor.ClickedCh:
